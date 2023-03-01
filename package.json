@@ -44,6 +44,7 @@
     "@types/js-yaml": "^4.0.5",
     "@types/pg": "^8.6.6",
     "@types/sqlite3": "^3.1.8",
+    "fs-extra":"^11.1.0",
     "handlebars": "~4.7.7",
     "js-yaml": "^4.1.0",
     "liquibase": "^4.4.0",

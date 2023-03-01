@@ -1,6 +1,5 @@
-import foss from '@sap/cds-foss'
 import cds from '@sap/cds'
-const fs = foss('fs-extra')
+import fs from 'fs-extra';
 import { chmodSync, existsSync } from 'fs'
 import path from 'path'
 const BuildTaskHandlerInternal = require('@sap/cds/bin/build/provider/buildTaskHandlerInternal')
