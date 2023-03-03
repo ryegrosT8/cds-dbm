@@ -1,4 +1,6 @@
 interface migrationOptions {
+  rlsMultiTenant?: boolean ,
+  rlsMultiTenantColumnName?: string
   schema?: {
     default: string
     clone: string

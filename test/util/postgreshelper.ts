@@ -31,6 +31,34 @@ async function getTableNamesFromPostgres(credentials) {
   return rows
 }
 
+
+async function getPoliciesFromPostgres(credentials) {
+  const client = new Client(getCredentialsForClient(credentials))
+  await client.connect()
+  const { rows } = await client.query(
+    `SELECT policyname, tablename FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename;`
+  )
+  await client.end()
+
+  return rows
+}
+
+
+async function getTablesWithRLSActive(credentials) {
+  const client = new Client(getCredentialsForClient(credentials))
+  await client.connect()
+  const { rows } = await client.query(
+    `SELECT tablename, rowsecurity FROM pg_tables 
+      WHERE schemaname = 'public' 
+        and rowsecurity = true 
+          ORDER BY tablename;`
+  )
+  await client.end()
+
+  return rows
+}
+
+
 async function getViewNamesFromPostgres(credentials) {
   const client = new Client(getCredentialsForClient(credentials))
   await client.connect()
@@ -139,5 +167,7 @@ export {
   getEntityNamesFromCds,
   extractTableColumnNamesFromSQL,
   extractViewColumnNames,
+  getPoliciesFromPostgres,
+  getTablesWithRLSActive,
   dropDatabase,
 }
