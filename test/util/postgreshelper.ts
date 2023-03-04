@@ -36,7 +36,7 @@ async function getPoliciesFromPostgres(credentials) {
   const client = new Client(getCredentialsForClient(credentials))
   await client.connect()
   const { rows } = await client.query(
-    `SELECT policyname, tablename FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename;`
+    `SELECT policyname, tablename, cmd, qual FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename;`
   )
   await client.end()
 
@@ -58,6 +58,20 @@ async function getTablesWithRLSActive(credentials) {
   return rows
 }
 
+async function getTenantColumnsOfTablesWithRLSActive(credentials,tenantColumnName) {
+  const client = new Client(getCredentialsForClient(credentials))
+  await client.connect()
+  const { rows } = await client.query(
+    `SELECT table_name as tablename, column_name as columnname, column_default as columndefault
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND column_name = '${tenantColumnName.toLowerCase()}'
+    ORDER BY table_name;`
+  )
+  await client.end()
+  
+  return rows
+}
 
 async function getViewNamesFromPostgres(credentials) {
   const client = new Client(getCredentialsForClient(credentials))
@@ -169,5 +183,6 @@ export {
   extractViewColumnNames,
   getPoliciesFromPostgres,
   getTablesWithRLSActive,
+  getTenantColumnsOfTablesWithRLSActive,  
   dropDatabase,
 }

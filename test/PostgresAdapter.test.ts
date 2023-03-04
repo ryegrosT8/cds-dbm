@@ -12,6 +12,7 @@ import {
   dropDatabase,
   getPoliciesFromPostgres,
   getTablesWithRLSActive,  
+  getTenantColumnsOfTablesWithRLSActive,  
   extractColumnNamesFromPostgres,
 } from './util/postgreshelper'
 import { BaseAdapter } from '../src/adapter/BaseAdapter'
@@ -151,10 +152,12 @@ describe('PostgresAdapter', () => {
 
       const tablesWithPolicies  = await getPoliciesFromPostgres(options.service.credentials)
       const tablesWithRLSActive = await getTablesWithRLSActive(options.service.credentials)
+      const columnsWithDefaultTenantValue = await getTenantColumnsOfTablesWithRLSActive(options.service.credentials, options.migrations.rlsMultiTenantColumnName)
       
       expect(tablesWithPolicies.length).toBeGreaterThan(0)
       expect(tablesWithRLSActive.length).toBeGreaterThan(0)
       expect(tablesWithRLSActive.length).toEqual(tablesWithPolicies.length)
+      expect(columnsWithDefaultTenantValue.length).toEqual(tablesWithPolicies.length)
 
     })
 

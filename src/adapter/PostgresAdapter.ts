@@ -177,33 +177,14 @@ export class PostgresAdapter extends BaseAdapter {
 
 
   /**
-   * 
-   * Add default value definition, based on session variable, to each column in model 
-   * that holds tenant identifier. 
-   */
-  _buildRlsDefaultColumnValueStatements():string[]{
-    const rlsColumn = this.options.migrations.rlsMultiTenantColumnName || 'tenantId'
-    const defaultValueForTenantColumn: string =  `current_setting('app.current_tenant')`
-    const rlsStatements: string[] = [];
-
-    for(let entry of this.cdsSQL){
-      const tableName        = entry.match(/(?<=CREATE TABLE\s)(\w+)/gim)
-      const haveTenantColumn = entry.includes(`${rlsColumn} `)
-
-      if(tableName && haveTenantColumn){
-        rlsStatements.push(`ALTER TABLE ${tableName} ALTER COLUMN ${rlsColumn} SET DEFAULT ${defaultValueForTenantColumn};`)
-      }
-    }
-
-    return rlsStatements;
-  }
-
-
-  /**
-   * Since liquibase don't detect  "SET ROW LEVEL SECURITY" and "POLICY's" when diff between schemas.
-   * Was needed to add it directly in changelog by hand. If in future, liquibase become able to do it, we can 
-   * move the above logic to _buildRlsDefaultColumnValueStatements
-   */
+  * Add RLS settings to change log
+  * 
+  * Ps.Since liquibase don't detect "SET ROW LEVEL SECURITY" and "POLICY's" on tables 
+  * and also is unable to parse default value for column (when is a expression) 
+  * when running "diff" between schemas. Had to add all statements directly in changelog. 
+  * If in future liquibase become able to "diff" RLS statements, we then 
+  * can move the above logic to _deployCdsToReferenceDatabase
+   */  
   _addRlsSettingsToChangeLog(changelog: ChangeLog){
     const rlsColumn = this.options.migrations.rlsMultiTenantColumnName || 'tenantId'
     const rlsStatements: string[] = [];
@@ -213,12 +194,15 @@ export class PostgresAdapter extends BaseAdapter {
       const haveTenantColumn = entry.includes(`${rlsColumn} `)
 
       if(tableName && haveTenantColumn){
+        rlsStatements.push(
+          `ALTER TABLE ${tableName} ALTER COLUMN ${rlsColumn} 
+            SET DEFAULT CURRENT_SETTING('app.current_tenant')::varchar(36);`)        
         rlsStatements.push(`ALTER TABLE ${tableName} ENABLE ROW LEVEL SECURITY;`)
         rlsStatements.push(`ALTER TABLE ${tableName} FORCE  ROW LEVEL SECURITY;`) //Now, even schema owner need to respect the policy
         rlsStatements.push(`DROP POLICY IF EXISTS tenant_policy_${tableName} ON ${tableName} ;`)
         rlsStatements.push(`
         CREATE POLICY tenant_policy_${tableName} ON ${tableName} USING (
-            ${rlsColumn} = current_setting('app.current_tenant')
+            ${rlsColumn} = CURRENT_SETTING('app.current_tenant')::varchar(36)
         );`)
       }
     }   
@@ -246,11 +230,6 @@ export class PostgresAdapter extends BaseAdapter {
     const credentials = this.options.service.credentials
     const referenceSchema = this.options.migrations.schema!.reference
     const client = new Client(getCredentialsForClient(credentials))
-    const isRlsMultiTenant  = this.options.migrations.rlsMultiTenant ?? false
-
-    if(isRlsMultiTenant){
-      this.cdsSQL.push(...this._buildRlsDefaultColumnValueStatements())
-    }
 
     await client.connect()
     await client.query(`DROP SCHEMA IF EXISTS ${referenceSchema} CASCADE`)
