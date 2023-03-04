@@ -103,6 +103,9 @@ describe('PostgresAdapter', () => {
       // @ts-ignore
       cds.env.requires.postgres = options.service
 
+      options.migrations.rlsMultiTenant = false
+      options.service.model = ['./test/app/srv/beershop-service.cds']
+
       // clean the stage
       adapter = await adapterFactory('db', options)
     })
@@ -115,22 +118,7 @@ describe('PostgresAdapter', () => {
       expect(existingTablesInPostgres.length).toBeGreaterThan(0)
     })
 
-    it('should create policies and active RLS when RLS Tenant mode is active', async () => {
-      options.migrations.rlsMultiTenant = true
-      options.migrations.rlsMultiTenantColumnName = 'tenantId'
-      options.service.model = ['./test/app/db/schema_multiTenantRLS.cds']
-  
-      await dropDatabase(options.service.credentials)
 
-      await adapter.deploy({ createDb: true })
-
-      const tablesWithPolicies  = await getPoliciesFromPostgres(options.service.credentials)
-      const tablesWithRLSActive = await getTablesWithRLSActive(options.service.credentials)
-      
-      expect(tablesWithPolicies.length).toBeGreaterThan(0)
-      expect(tablesWithRLSActive.length).toBeGreaterThan(0)
-      expect(tablesWithRLSActive.length).toEqual(tablesWithPolicies.length)
-    })
 
     it('should create the complete data model in an empty database', async () => {
       await adapter.drop({ dropAll: true })
@@ -150,6 +138,24 @@ describe('PostgresAdapter', () => {
 
       const countResponse = await SELECT.from('csw.Beers').columns('COUNT(*) as myCount')
       expect(parseInt(countResponse[0].myCount)).toEqual(2)
+    })
+
+    it('should create policies and active RLS when RLS Tenant mode is active', async () => {
+      options.migrations.rlsMultiTenant = true
+      options.migrations.rlsMultiTenantColumnName = 'tenantId'
+      options.service.model = ['./test/app/db/schema_multiTenantRLS.cds']
+  
+      await dropDatabase(options.service.credentials)
+
+      await adapter.deploy({ createDb: true })
+
+      const tablesWithPolicies  = await getPoliciesFromPostgres(options.service.credentials)
+      const tablesWithRLSActive = await getTablesWithRLSActive(options.service.credentials)
+      
+      expect(tablesWithPolicies.length).toBeGreaterThan(0)
+      expect(tablesWithRLSActive.length).toBeGreaterThan(0)
+      expect(tablesWithRLSActive.length).toEqual(tablesWithPolicies.length)
+
     })
 
     describe('- handling deltas -', () => {
