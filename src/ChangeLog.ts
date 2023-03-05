@@ -283,4 +283,34 @@ export class ChangeLog {
       })
     }
   }
+
+  /**
+   * Add SQL generic changeset
+   * @param {string} id ChangeSet ID
+   * @param {string} sqlStatement Database native statement
+   * @param {boolean} [atTop=false] Insert at begin o changeset's array
+   */
+  public addSLQChangeSet(id:string,sqlStatement:string,atTop:boolean = false){
+    const entry = {
+      changeSet : {
+        id: id,
+        author: 'cds-dbm auto-undeploy (generated)',
+        changes: [
+          {
+            sql: {
+              sql:sqlStatement
+            },
+          },
+        ],
+      }
+    };
+
+    if(atTop){
+      this.data.databaseChangeLog.unshift(entry)
+    }else{
+      this.data.databaseChangeLog.push(entry);
+    }
+
+  }
+
 }

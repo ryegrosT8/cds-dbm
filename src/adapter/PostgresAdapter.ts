@@ -187,40 +187,48 @@ export class PostgresAdapter extends BaseAdapter {
    */  
   _addRlsSettingsToChangeLog(changelog: ChangeLog){
     const rlsColumn = this.options.migrations.rlsMultiTenantColumnName || 'tenantId'
-    const rlsStatements: string[] = [];
+    const preStatements : string [] = []
+    const postStatements : string [] = []
 
-    for(let entry of this.cdsSQL){
-      const tableName        = entry.match(/(?<=CREATE TABLE\s)(\w+)/gim)
-      const haveTenantColumn = entry.includes(`${rlsColumn} `)
+    // Search into change log for "create table", "add column" and "drop column" of tenant columns
+    for (let entry of changelog.data.databaseChangeLog) {
+      for (let change of entry.changeSet.changes) {
+        for (let action in change) {
+          if (action === 'createTable'|| action === 'addColumn' ) {
+            let hasTenantColumn: boolean = false
 
-      if(tableName && haveTenantColumn){
-        rlsStatements.push(
-          `ALTER TABLE ${tableName} ALTER COLUMN ${rlsColumn} 
-            SET DEFAULT CURRENT_SETTING('app.current_tenant')::varchar(36);`)        
-        rlsStatements.push(`ALTER TABLE ${tableName} ENABLE ROW LEVEL SECURITY;`)
-        rlsStatements.push(`ALTER TABLE ${tableName} FORCE  ROW LEVEL SECURITY;`) //Now, even schema owner need to respect the policy
-        rlsStatements.push(`DROP POLICY IF EXISTS tenant_policy_${tableName} ON ${tableName} ;`)
-        rlsStatements.push(`
-        CREATE POLICY tenant_policy_${tableName} ON ${tableName} USING (
-            ${rlsColumn} = CURRENT_SETTING('app.current_tenant')::varchar(36)
-        );`)
+            for (let column of change[action].columns) {
+              if (column.column.name === rlsColumn.toLowerCase()){ // Check if have a tenant column on changeset
+                hasTenantColumn = true
+                column.defaultValueComputed = `CURRENT_SETTING('app.current_tenant')::varchar(36);`
+                break;
+              }
+            }
+            if (hasTenantColumn) {
+                postStatements.push(
+                  `ALTER TABLE ${change[action].tableName} ENABLE ROW LEVEL SECURITY; \n` +
+                  `ALTER TABLE ${change[action].tableName} FORCE  ROW LEVEL SECURITY; \n` + 
+                  `DROP POLICY IF EXISTS tenant_policy_${change[action].tableName} ON ${change[action].tableName} ; \n` +
+                  `CREATE POLICY tenant_policy_${change[action].tableName} ON ${change[action].tableName} USING ( ` +
+                  `  ${rlsColumn} = CURRENT_SETTING('app.current_tenant')::varchar(36));`
+                )
+            }
+          }else if((action === 'dropColumn' && change[action].columnName === rlsColumn.toLowerCase()) 
+            || action === 'dropTable'){
+            // In case of dropTable, the changelog don't have columns info. Best approach is try
+            // to drop related policys with "if exists" clause to avoid "NOT CASCADED" drop o table error
+            preStatements.push( 
+              `ALTER TABLE ${change[action].tableName} DISABLE ROW LEVEL SECURITY; \n` +
+              `DROP POLICY IF EXISTS tenant_policy_${change[action].tableName} ON ${change[action].tableName} ;`
+              );            
+          }
+        }
       }
-    }   
-    if(rlsStatements.length > 0 ){
-      changelog.data.databaseChangeLog.push({
-        changeSet: {
-          id: `${new Date().getTime()}-RLS`,
-          author: 'cds-dbm auto-undeploy (generated)',
-          changes: [
-            {
-              sql: {
-                sql: rlsStatements.join(' \n '),
-              },
-            },
-          ],
-        },
-      });
     }
+
+    preStatements.forEach((statement,seq)=>changelog.addSLQChangeSet(`${new Date().getTime()}-${seq}-RLS`,statement,true))
+    postStatements.forEach((statement,seq)=>changelog.addSLQChangeSet(`${new Date().getTime()}-${seq}-RLS`,statement))
+
   }
 
   /**

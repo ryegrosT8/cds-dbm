@@ -18,7 +18,7 @@ entity Brewery : cuid, MultiTenant {
   beers     : Association to many Beers
                 on beers.brewery = $self;
 }
-entity TypeChecks : cuid {
+entity TypeChecks : cuid, MultiTenant {
   type_Boolean     : Boolean;
   type_Int32       : Integer;
   type_Int64       : Integer64;

@@ -154,11 +154,65 @@ describe('PostgresAdapter', () => {
       const tablesWithRLSActive = await getTablesWithRLSActive(options.service.credentials)
       const columnsWithDefaultTenantValue = await getTenantColumnsOfTablesWithRLSActive(options.service.credentials, options.migrations.rlsMultiTenantColumnName)
       
-      expect(tablesWithPolicies.length).toBeGreaterThan(0)
-      expect(tablesWithRLSActive.length).toBeGreaterThan(0)
-      expect(tablesWithRLSActive.length).toEqual(tablesWithPolicies.length)
-      expect(columnsWithDefaultTenantValue.length).toEqual(tablesWithPolicies.length)
+      expect(tablesWithPolicies.length).toEqual(2)
+      expect(tablesWithRLSActive.length).toEqual(2)
+      expect(columnsWithDefaultTenantValue.length).toEqual(2)
+    })
 
+
+    describe('- handling multi tenant deltas -', () => {
+      beforeEach(async () => {
+        options.migrations.rlsMultiTenant = true
+        options.migrations.rlsMultiTenantColumnName = 'tenantId'
+        options.migrations.deploy.undeployFile = ''
+        options.service.model = ['./test/app/db/schema_multiTenantRLS.cds']
+
+        await adapter.drop({ dropAll: true })
+        await adapter.deploy({ createDb: true })
+
+        // @ts-ignore
+        cds.services['db'].disconnect()
+      })
+      it('should add tenant column', async () => {
+        // load an updated model
+        options.service.model = ['./test/app/db/schema_multiTenantRLS_addTenantColumn.cds']
+        adapter = await adapterFactory('db', options)
+        await adapter.deploy({})
+
+        const tablesWithPolicies  = await getPoliciesFromPostgres(options.service.credentials)
+        const tablesWithRLSActive = await getTablesWithRLSActive(options.service.credentials)
+        const columnsWithDefaultTenantValue = await getTenantColumnsOfTablesWithRLSActive(options.service.credentials, options.migrations.rlsMultiTenantColumnName)
+        
+        expect(tablesWithPolicies.length).toEqual(3)
+        expect(tablesWithRLSActive.length).toEqual(3)
+        expect(columnsWithDefaultTenantValue.length).toEqual(3)
+  
+      })
+      it('should remove tenant column', async () => {
+        // load an updated model
+        options.service.model = ['./test/app/db/schema_multiTenantRLS_removeTenantColumn.cds']
+        adapter = await adapterFactory('db', options)
+        await adapter.deploy({})
+
+        const tablesWithPolicies  = await getPoliciesFromPostgres(options.service.credentials)
+        const tablesWithRLSActive = await getTablesWithRLSActive(options.service.credentials)
+        const columnsWithDefaultTenantValue = await getTenantColumnsOfTablesWithRLSActive(options.service.credentials, options.migrations.rlsMultiTenantColumnName)
+        
+        expect(tablesWithPolicies.length).toEqual(0)
+        expect(tablesWithRLSActive.length).toEqual(0)
+        expect(columnsWithDefaultTenantValue.length).toEqual(0)
+      })
+      it('should remove table with tenant policy', async () => {
+        // load an updated model
+        options.service.model = ['./test/app/db/schema_multiTenantRLS_removeTables.cds']
+        adapter = await adapterFactory('db', options)
+        await adapter.deploy({ autoUndeploy: true })
+
+        const existingTablesInPostgres = await getTableNamesFromPostgres(options.service.credentials)
+        expect(existingTablesInPostgres.map((i) => i.table_name)).not.toContain('csw_beers')
+        expect(existingTablesInPostgres.map((i) => i.table_name)).not.toContain('csw_brewery')        
+        
+      })
     })
 
     describe('- handling deltas -', () => {

@@ -2,23 +2,19 @@ namespace csw;
 
 using {cuid} from '@sap/cds/common';
 
-aspect MultiTenant{
-  tenantId  : UUID ;
-}
-
-entity Beers : cuid, MultiTenant {
+entity Beers : cuid{
   name      : String(100);
   abv       : Decimal(3, 1);
   ibu       : Integer;
   brewery   : Association to one Brewery;
 }
 
-entity Brewery : cuid, MultiTenant {
+entity Brewery : cuid{
   name      : String(150);
   beers     : Association to many Beers
                 on beers.brewery = $self;
 }
-entity TypeChecks : cuid {
+entity TypeChecks : cuid{
   type_Boolean     : Boolean;
   type_Int32       : Integer;
   type_Int64       : Integer64;
