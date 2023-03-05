@@ -250,6 +250,33 @@ class ChangeLog {
             });
         }
     }
+    /**
+     * Add SQL generic changeset
+     * @param {string} id ChangeSet ID
+     * @param {string} sqlStatement Database native statement
+     * @param {boolean} [atTop=false] Insert at begin o changeset's array
+     */
+    addSLQChangeSet(id, sqlStatement, atTop = false) {
+        const entry = {
+            changeSet: {
+                id: id,
+                author: 'cds-dbm auto-undeploy (generated)',
+                changes: [
+                    {
+                        sql: {
+                            sql: sqlStatement
+                        },
+                    },
+                ],
+            }
+        };
+        if (atTop) {
+            this.data.databaseChangeLog.unshift(entry);
+        }
+        else {
+            this.data.databaseChangeLog.push(entry);
+        }
+    }
 }
 exports.ChangeLog = ChangeLog;
 //# sourceMappingURL=ChangeLog.js.map
