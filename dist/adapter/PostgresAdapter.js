@@ -172,7 +172,7 @@ class PostgresAdapter extends BaseAdapter_1.BaseAdapter {
                         for (let column of change[action].columns) {
                             if (column.column.name === rlsColumn.toLowerCase()) { // Check if have a tenant column on changeset
                                 hasTenantColumn = true;
-                                column.defaultValueComputed = `CURRENT_SETTING('app.current_tenant')::varchar(36);`;
+                                column.column.defaultValueComputed = `gettenant()`;
                                 break;
                             }
                         }
@@ -181,7 +181,7 @@ class PostgresAdapter extends BaseAdapter_1.BaseAdapter {
                                 `ALTER TABLE ${change[action].tableName} FORCE  ROW LEVEL SECURITY; \n` +
                                 `DROP POLICY IF EXISTS tenant_policy_${change[action].tableName} ON ${change[action].tableName} ; \n` +
                                 `CREATE POLICY tenant_policy_${change[action].tableName} ON ${change[action].tableName} USING ( ` +
-                                `  ${rlsColumn} = CURRENT_SETTING('app.current_tenant')::varchar(36));`);
+                                `  ${rlsColumn} = getTenant()::varchar(36));`);
                         }
                     }
                     else if ((action === 'dropColumn' && change[action].columnName === rlsColumn.toLowerCase())
@@ -191,11 +191,20 @@ class PostgresAdapter extends BaseAdapter_1.BaseAdapter {
                         preStatements.push(`ALTER TABLE ${change[action].tableName} DISABLE ROW LEVEL SECURITY; \n` +
                             `DROP POLICY IF EXISTS tenant_policy_${change[action].tableName} ON ${change[action].tableName} ;`);
                     }
+                    else if (action === 'dropDefaultValue' && change[action].columnName === rlsColumn.toLowerCase()) {
+                        // Diff log will try to drop default value on every interaction
+                        entry.changeSet.ignore = true; // tell liquibase to ignore this statement
+                    }
                 }
             }
         }
-        preStatements.forEach((statement, seq) => changelog.addSLQChangeSet(`${new Date().getTime()}-${seq}-RLS`, statement, true));
-        postStatements.forEach((statement, seq) => changelog.addSLQChangeSet(`${new Date().getTime()}-${seq}-RLS`, statement));
+        if (preStatements.length > 0 || postStatements.length > 0) {
+            preStatements.push(`CREATE OR REPLACE FUNCTION getTenant() RETURNS varchar(36) ` +
+                `AS $$ SELECT current_setting('app.current_tenant')::character varying(36) $$ ` +
+                `LANGUAGE SQL;`);
+        }
+        preStatements.forEach((statement, seq) => changelog.addSLQChangeSet(`${new Date().getTime()}-${seq}-before-RLS`, statement, true));
+        postStatements.forEach((statement, seq) => changelog.addSLQChangeSet(`${new Date().getTime()}-${seq}-after-RLS`, statement));
     }
     /**
      * @override
