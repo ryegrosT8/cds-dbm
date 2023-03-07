@@ -294,7 +294,7 @@ export class ChangeLog {
     const entry = {
       changeSet : {
         id: id,
-        author: 'cds-dbm auto-undeploy (generated)',
+        author: 'cds-dbm sql (generated)',
         changes: [
           {
             sql: {
