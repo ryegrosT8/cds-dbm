@@ -157,6 +157,8 @@ describe('PostgresAdapter', () => {
       expect(tablesWithPolicies.length).toEqual(2)
       expect(tablesWithRLSActive.length).toEqual(2)
       expect(columnsWithDefaultTenantValue.length).toEqual(2)
+      columnsWithDefaultTenantValue.forEach((entry)=>expect(entry.columndefault).toEqual('gettenant()'))
+
     })
 
 
@@ -186,7 +188,8 @@ describe('PostgresAdapter', () => {
         expect(tablesWithPolicies.length).toEqual(3)
         expect(tablesWithRLSActive.length).toEqual(3)
         expect(columnsWithDefaultTenantValue.length).toEqual(3)
-  
+        columnsWithDefaultTenantValue.forEach((entry)=>expect(entry.columndefault).toEqual('gettenant()'))
+
       })
       it('should remove tenant column', async () => {
         // load an updated model
