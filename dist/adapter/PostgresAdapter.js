@@ -200,7 +200,7 @@ class PostgresAdapter extends BaseAdapter_1.BaseAdapter {
         }
         if (preStatements.length > 0 || postStatements.length > 0) {
             preStatements.push(`CREATE OR REPLACE FUNCTION getTenant() RETURNS varchar(36) ` +
-                `AS $$ SELECT current_setting('app.current_tenant')::character varying(36) $$ ` +
+                `AS $$ SELECT current_setting('app.current_tenant',true)::character varying(36) $$ ` +
                 `LANGUAGE SQL;`);
         }
         preStatements.forEach((statement, seq) => changelog.addSLQChangeSet(`${new Date().getTime()}-${seq}-before-RLS`, statement, true));
